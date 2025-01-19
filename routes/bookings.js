@@ -4,13 +4,13 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // Get booking details
-router.get('/:stripe_session_id', async (req, res) => {
+router.get('/stripe/:stripe_session_id', async (req, res) => {
     try {
       const { data: booking, error } = await supabase
         .from('bookings')
         .select('*')
         .eq('stripe_session_id', req.params.stripe_session_id)
-        .single();
+        .limit(1);
   
       if (error) throw error;
   
@@ -48,6 +48,42 @@ router.get('/:stripe_session_id', async (req, res) => {
       res.status(500).json({ message: 'Error fetching bookings' });
     }
   });
+
+  router.get('/restaurant-bookings', async (req, res) => {
+    try {
+      const { restaurantId } = req.query;
+  
+      console.log(restaurantId,'------------------restaurantId');
+      
+
+      if (!restaurantId) {
+        return res.status(400).json({ message: 'Restaurant ID is required' });
+      }
+  
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('restaurant_id', restaurantId)  // Filter by restaurantId
+        .order('booking_date', { ascending: true });
+  
+      if (error) {
+        console.error('Error fetching bookings:', error);
+        return res.status(500).json({ message: 'Error fetching bookings', error: error.message });
+      }
+  
+      // Handle no bookings found for the restaurantId
+      if (!bookings || bookings.length === 0) {
+        return res.status(200).json({ message: 'No booking' });
+      }
+  
+      // Return the bookings
+      res.status(200).json(bookings);
+    } catch (err) {
+      console.error('Error fetching bookings:', err);
+      res.status(500).json({ message: 'Error fetching bookings', error: err.message });
+    }
+  });
+  
   
   // Cancel booking
   router.post('/api/bookings/:bookingId/cancel', async (req, res) => {
